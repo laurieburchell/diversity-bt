@@ -16,6 +16,54 @@ import math
 RESCALE_COEF = 1 / math.sqrt(2)
 
 
+# class SourceEncoder(nn.Module):
+#     """Encodes source sentence, passes through three encoder layers, 
+#     then mean-pool representation"""
+#     def __init__(self, d_model=512, nhead=8, num_layer=3, 
+#                  dim_feedforward=1024, dropout=0.1, activation="relu"):
+#         super(SourceEncoder, self).__init__()
+#         encoder_layer = nn.TransformerEncoderLayer(d_model, nhead, 
+#                                                 dim_feedforward, dropout,
+#                                                 activation)
+#         self.d_model = d_model
+#         self.nhead = nhead
+#         self.encoder = nn.TransformerEncoder(encoder_layer, 3)
+#         self.embedding = TransformerEmbedding(
+#             self._vocab_size, self.hidden_size, dropout_ratio=dropout_ratio)
+        
+        
+#     def mean_pool(encoder_output, src_mask):
+#         encoder_output = encoder_output * src_mask.unsqueeze(-1)
+#         encoder_output = encoder_output.sum(1) / (src_mask.sum(1).unsqueeze(-1) + 10e-8)
+#         return encoder_output
+        
+    
+#     def forward(self, src):
+#         """
+#         Process source sequences, returning an encoding
+
+#         Parameters
+#         ----------
+#         src : seq
+#             The sequence to the encoder.
+#         src_key_padding_mask : TYPE, optional
+#             The mask for source keys per batch. The default is None.
+
+#         Returns
+#         -------
+#         None.
+
+#         """
+#         # make mask of null input
+#         src_mask = torch.ne(src, 0).float()
+#         x = 
+#         x = self.encoder(src, )
+        
+        
+
+
+
+
 class TransformerEmbedding(nn.Embedding):
     """
     Rescale the embeddings.
@@ -47,140 +95,9 @@ class TransformerEmbedding(nn.Embedding):
                 pos_embed = self.pos_layer(embed, start=start)
             embed += pos_embed
         return self.dropout(embed)
-
-
-class TransformerEncoderLayer(nn.Module):
-
-    def __init__(self, size, ff_size=None, n_att_head=8, dropout_ratio=0.1, relative_pos=False):
-        super(TransformerEncoderLayer, self).__init__()
-        if ff_size is None:
-            ff_size = size * 4
-        self.dropout = nn.Dropout(dropout_ratio)
-        self.attention = MultiHeadAttention(
-            size, n_att_head, dropout_ratio=dropout_ratio, relative_pos=relative_pos)
-        self.ff_layer = TransformerFeedForward(
-            size, ff_size, dropout_ratio=dropout_ratio)
-        self.layer_norm1 = nn.LayerNorm(size)
-        self.layer_norm2 = nn.LayerNorm(size)
-
-    def forward(self, x, src_mask=None):
-        # Attention layer
-        y1 = self.layer_norm1(x)
-        y1, _ = self.attention(y1, y1, y1, mask=src_mask)
-        y1 = self.dropout(y1)
-        y1 = residual_connect(y1, x)
-        # Feed-forward layer
-        y2 = self.layer_norm2(y1)
-        y2 = self.ff_layer(y2)
-        y2 = self.dropout(y2)
-        y2 = residual_connect(y2, y1)
-        return y2
-
-
-class TransformerFeedForward(nn.Module):
-    """The common feed-forward layer."""
-
-    def __init__(self, size, hidden_size, dropout_ratio=0.1, activation="relu"):
-        super(TransformerFeedForward, self).__init__()
-        self.w_1 = nn.Linear(size, hidden_size)
-        self.w_2 = nn.Linear(hidden_size, size)
-        self.dropout = nn.Dropout(dropout_ratio)
-        if activation == "relu":
-            self._activate = F.relu
-        elif activation == "gelu":
-            self._activate = gelu
-        else:
-            raise NotImplementedError
-
-    def forward(self, x):
-        return self.w_2(self.dropout(self._activate(self.w_1(x))))
-
-
-class MultiHeadAttention(nn.Module):
-    """The implementation of multi-head attention.
     
-    Following the original description in the transformer paper.
-    """
-
-    _RELATIVE_POS_CLIP = 2
-
-    def __init__(self, out_size, num_head=8, hidden_size=None, additive=False, dropout_ratio=0, relative_pos=False):
-        super(MultiHeadAttention, self).__init__()
-        if hidden_size is None:
-            hidden_size = out_size
-        self._num_head = num_head
-        self._hidden_size = hidden_size
-        self._out_size = out_size
-        self._additive = additive
-        if relative_pos:
-            self.relative_posmatrix = nn.Embedding(
-                self._RELATIVE_POS_CLIP * 2 + 1, hidden_size)
-        else:
-            self.relative_posmatrix = None
-        self._attention = KeyValAttention(
-            scaling=True, dropout_ratio=dropout_ratio, )
-        if additive:
-            # Taken from RNMT+ paper
-            raise NotImplementedError
-        else:
-            self.linear_Q = nn.Linear(out_size, hidden_size)
-            self.linear_K = nn.Linear(out_size, hidden_size)
-            self.linear_V = nn.Linear(out_size, hidden_size)
-        self.linear_O = nn.Linear(hidden_size, out_size)
 
 
-class KeyValAttention(nn.Module):
-
-    def __init__(self, scaling=False, dropout_ratio=0):
-        """Initialize a key-value attention class.
-        Args:
-            scaling - Whether normalize the attention weights by sqrt(size)
-            dropout_ratio - The probability of dropout on the logits
-        """
-        super(KeyValAttention, self).__init__()
-        self._scaling = scaling
-        self._dropout = nn.Dropout(
-            dropout_ratio) if dropout_ratio > 0 else None
-
-    def forward_2d(self, query, keys, values, mask=None, additional_logits=None):
-        """Compute attention for 2-dimensional queries (batch x hidden).
-        """
-        context_vector, weights = self.forward_3d(
-            query.unsqueeze(-2), keys, values, mask, additional_logits)
-        return context_vector.squeeze(-2), weights.squeeze(-2)
-
-    def forward_3d(self, query, keys, values, mask=None, additional_logits=None):
-        """Compute attention for 3-dimensional input (batch x step x hidden).
-        """
-        logits = torch.matmul(query, keys.transpose(-2, -1))
-        if additional_logits is not None:
-            logits += additional_logits
-        if self._scaling:
-            logits /= math.sqrt(query.shape[-1])
-        if mask is not None:
-            if self._dropout is not None:
-                mask = self._dropout(mask)
-            if mask.dim() < logits.dim():
-                mask = mask.unsqueeze(-2)
-            logits = logits.masked_fill(mask == 0, -1e3)
-        elif self._dropout is not None:
-            # Using dropout but no mask
-            mask = self._dropout(logits.new_ones(logits.shape))
-            logits = logits.masked_fill(mask == 0, -1e3)
-        weights = F.softmax(logits, dim=-1)
-        context_vector = torch.matmul(weights, values)
-        return context_vector, weights
-
-    def forward(self, query, keys, values, mask=None, additional_logits=None):
-        """Compute the context vector with key value attention.
-        
-        Returns:
-            context vector and attention weights.
-        """
-        if query.dim() == keys.dim() - 1:
-            return self.forward_2d(query, keys, values, mask, additional_logits=additional_logits)
-        else:
-            return self.forward_3d(query, keys, values, mask, additional_logits=additional_logits)
 
 
 class PositionalEmbedding(nn.Module):
@@ -227,3 +144,141 @@ def gelu(x):
     """
     return 0.5 * x * (
         1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
+
+
+
+# class TransformerEncoderLayer(nn.Module):
+
+#     def __init__(self, size, ff_size=None, n_att_head=8, dropout_ratio=0.1, 
+#                  relative_pos=False):
+#         super(TransformerEncoderLayer, self).__init__()
+#         if ff_size is None:
+#             ff_size = size * 4
+#         self.dropout = nn.Dropout(dropout_ratio)
+#         self.attention = MultiHeadAttention(
+#             size, n_att_head, dropout_ratio=dropout_ratio, 
+#             relative_pos=relative_pos)
+#         self.ff_layer = TransformerFeedForward(
+#             size, ff_size, dropout_ratio=dropout_ratio)
+#         self.layer_norm1 = nn.LayerNorm(size)
+#         self.layer_norm2 = nn.LayerNorm(size)
+
+#     def forward(self, x, src_mask=None):
+#         # Attention layer
+#         y1 = self.layer_norm1(x)
+#         y1, _ = self.attention(y1, y1, y1, mask=src_mask)
+#         y1 = self.dropout(y1)
+#         y1 = residual_connect(y1, x)
+#         # Feed-forward layer
+#         y2 = self.layer_norm2(y1)
+#         y2 = self.ff_layer(y2)
+#         y2 = self.dropout(y2)
+#         y2 = residual_connect(y2, y1)
+#         return y2
+
+
+# class TransformerFeedForward(nn.Module):
+#     """The common feed-forward layer."""
+
+#     def __init__(self, size, hidden_size, dropout_ratio=0.1, activation="relu"):
+#         super(TransformerFeedForward, self).__init__()
+#         self.w_1 = nn.Linear(size, hidden_size)
+#         self.w_2 = nn.Linear(hidden_size, size)
+#         self.dropout = nn.Dropout(dropout_ratio)
+#         if activation == "relu":
+#             self._activate = F.relu
+#         elif activation == "gelu":
+#             self._activate = gelu
+#         else:
+#             raise NotImplementedError
+
+#     def forward(self, x):
+#         return self.w_2(self.dropout(self._activate(self.w_1(x))))
+
+
+# class MultiHeadAttention(nn.Module):
+#     """The implementation of multi-head attention.
+    
+#     Following the original description in the transformer paper.
+#     """
+
+#     _RELATIVE_POS_CLIP = 2
+
+#     def __init__(self, out_size, num_head=8, hidden_size=None, 
+#                  additive=False, dropout_ratio=0, relative_pos=False):
+#         super(MultiHeadAttention, self).__init__()
+#         if hidden_size is None:
+#             hidden_size = out_size
+#         self._num_head = num_head
+#         self._hidden_size = hidden_size
+#         self._out_size = out_size
+#         self._additive = additive
+#         if relative_pos:
+#             self.relative_posmatrix = nn.Embedding(
+#                 self._RELATIVE_POS_CLIP * 2 + 1, hidden_size)
+#         else:
+#             self.relative_posmatrix = None
+#         self._attention = KeyValAttention(
+#             scaling=True, dropout_ratio=dropout_ratio, )
+#         if additive:
+#             # Taken from RNMT+ paper
+#             raise NotImplementedError
+#         else:
+#             self.linear_Q = nn.Linear(out_size, hidden_size)
+#             self.linear_K = nn.Linear(out_size, hidden_size)
+#             self.linear_V = nn.Linear(out_size, hidden_size)
+#         self.linear_O = nn.Linear(hidden_size, out_size)
+
+
+# class KeyValAttention(nn.Module):
+
+#     def __init__(self, scaling=False, dropout_ratio=0):
+#         """Initialize a key-value attention class.
+#         Args:
+#             scaling - Whether normalize the attention weights by sqrt(size)
+#             dropout_ratio - The probability of dropout on the logits
+#         """
+#         super(KeyValAttention, self).__init__()
+#         self._scaling = scaling
+#         self._dropout = nn.Dropout(
+#             dropout_ratio) if dropout_ratio > 0 else None
+
+#     def forward_2d(self, query, keys, values, mask=None, additional_logits=None):
+#         """Compute attention for 2-dimensional queries (batch x hidden).
+#         """
+#         context_vector, weights = self.forward_3d(
+#             query.unsqueeze(-2), keys, values, mask, additional_logits)
+#         return context_vector.squeeze(-2), weights.squeeze(-2)
+
+#     def forward_3d(self, query, keys, values, mask=None, additional_logits=None):
+#         """Compute attention for 3-dimensional input (batch x step x hidden).
+#         """
+#         logits = torch.matmul(query, keys.transpose(-2, -1))
+#         if additional_logits is not None:
+#             logits += additional_logits
+#         if self._scaling:
+#             logits /= math.sqrt(query.shape[-1])
+#         if mask is not None:
+#             if self._dropout is not None:
+#                 mask = self._dropout(mask)
+#             if mask.dim() < logits.dim():
+#                 mask = mask.unsqueeze(-2)
+#             logits = logits.masked_fill(mask == 0, -1e3)
+#         elif self._dropout is not None:
+#             # Using dropout but no mask
+#             mask = self._dropout(logits.new_ones(logits.shape))
+#             logits = logits.masked_fill(mask == 0, -1e3)
+#         weights = F.softmax(logits, dim=-1)
+#         context_vector = torch.matmul(weights, values)
+#         return context_vector, weights
+
+#     def forward(self, query, keys, values, mask=None, additional_logits=None):
+#         """Compute the context vector with key value attention.
+        
+#         Returns:
+#             context vector and attention weights.
+#         """
+#         if query.dim() == keys.dim() - 1:
+#             return self.forward_2d(query, keys, values, mask, additional_logits=additional_logits)
+#         else:
+#             return self.forward_3d(query, keys, values, mask, additional_logits=additional_logits)

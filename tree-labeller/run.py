@@ -36,6 +36,7 @@ n_valid_per_epoch = 4
 part_index = 0 # this is multi-GPU horovod stuff that I'm leaving out for now
 part_num = 1
 gpu_num = 1
+batch_size = 128 * gpu_num
 
 ##############################################################################
 
@@ -59,7 +60,7 @@ parser.add_argument("--opt_hidden_size", type=int, default=256,
                     help="Dimension of hidden layer in tree autoencoder")
 parser.add_argument("--opt_without_source", action="store_true",
                     help="Do not have input source sentence")
-parser.add_argument("--opt_codebits", type=int, default=0,
+parser.add_argument("--opt_codebits", type=int, default=8,
                 help="Number of bits for each discrete code")
 parser.add_argument("--train", action="store_true", default=True,
                     help="Train the model")
@@ -75,7 +76,7 @@ dataset = BilingualTreeDataLoader(
     src_vocab_path=OPTS.source_vocab,
     treelstm_vocab_path=OPTS.target_tree_vocab,
     cache_path=None,
-    batch_size=128 * gpu_num,
+    batch_size=batch_size,
     part_index=part_index,
     part_num=part_num,
     max_tokens=60,
@@ -91,8 +92,9 @@ autoencoder = TreeAutoEncoder(dataset,
 if torch.cuda.is_available():
     autoencoder.cuda()
     
+print(autoencoder)
+    
 # train the model
-# Train the model
 if OPTS.train:
     # Training code
     scheduler = SimpleScheduler(30)

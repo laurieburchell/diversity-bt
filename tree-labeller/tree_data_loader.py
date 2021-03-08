@@ -226,7 +226,7 @@ class TreeDataGenerator(object):
         enc_graph = dgl.from_networkx(enc_g, node_attrs=['x', 'mask'])
         dec_graph = dgl.from_networkx(
             dec_g, node_attrs=['x', 'y', 'pos', 'mask', 'depth'])
-        return enc_graph, dec_graph
+        return enc_graph.to("cuda:0"), dec_graph.to("cuda:0")
 
     def trees(self):
         return self._trees

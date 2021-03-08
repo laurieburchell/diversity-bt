@@ -18,12 +18,12 @@ import dgl.init
 from tree_data_loader import BilingualTreeDataLoader
 from tree_lstm import TreeLSTMCell, DecoderTreeLSTMCell
 from semantic_hashing import SemanticHashing
-from transformer import TransformerEmbedding, TransformerEncoderLayer
+from transformer import TransformerEmbedding  # TransformerEncoderLayer
 
 
 class TreeAutoEncoder(nn.Module):
 
-    def __init__(self, dataset, hidden_size=256, 
+    def __init__(self, dataset, hidden_size=256,
                  code_bits=5, without_source=False, dropout_ratio=0.1):
         super(TreeAutoEncoder, self).__init__()
         assert isinstance(dataset, BilingualTreeDataLoader)
@@ -32,17 +32,18 @@ class TreeAutoEncoder(nn.Module):
         self._label_size = dataset.label_vocab().size()
         self._code_bits = code_bits
         self._without_source = without_source
+        ff_size = self.hidden_size * 4
 
         # Encoder
         self.src_embed_layer = TransformerEmbedding(
             self._vocab_size, self.hidden_size, dropout_ratio=dropout_ratio)
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=self.hidden_size, 
+                                           nhead=8,
+                                           dim_feedforward=ff_size)
         self.encoder_norm = nn.LayerNorm(self.hidden_size)
-        self.encoder_layers = nn.ModuleList()
-        ff_size = hidden_size * 4
-        for _ in range(3):
-            layer = TransformerEncoderLayer(
-                self.hidden_size, ff_size, n_att_head=8, dropout_ratio=dropout_ratio)
-            self.encoder_layers.append(layer)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, 
+                                                    num_layers=3,
+                                                    norm=self.encoder_norm)
 
         self.label_embed_layer = nn.Embedding(
             self._label_size, self.hidden_size)
@@ -68,12 +69,32 @@ class TreeAutoEncoder(nn.Module):
                 nn.init.constant_(module.bias, 0.0)
 
     def encode_source(self, src_seq, src_mask, meanpool=False):
+        """
+        
+
+        Parameters
+        ----------
+        src_seq : list
+            Encoded source sentence.
+        src_mask : TYPE
+            DESCRIPTION.
+        meanpool : TYPE, optional
+            DESCRIPTION. The default is False.
+
+        Returns
+        -------
+        encoder_outputs : dict
+            DESCRIPTION.
+
+        """
         src_seq = src_seq.long()
         x = self.src_embed_layer(src_seq)
-        for l, layer in enumerate(self.encoder_layers):
-            x = layer(x, src_mask)
-        encoder_states = self.encoder_norm(x)
+        # have to transpose mask due to matrix nonsense in MultiheadAttention
+        encoder_states = self.transformer_encoder(x, 
+                                                  src_key_padding_mask=src_mask.transpose(0,1))
+        
         if meanpool:
+            src_mask = src_mask.float()
             encoder_states = encoder_states * src_mask.unsqueeze(-1)
             encoder_states = encoder_states.sum(
                 1) / (src_mask.sum(1).unsqueeze(-1) + 10e-8)
@@ -84,12 +105,18 @@ class TreeAutoEncoder(nn.Module):
         }
         return encoder_outputs
 
+        
+    
+
     def forward(self, src, enc_tree, dec_tree, return_code=False, **kwargs):
-        self._init_graph(enc_tree, dec_tree)
+        
         # Source encoding
-        src_mask = torch.ne(src, 0).float()
+        # TODO: get mask working
+        src_mask = torch.eq(src, 0)
         encoder_outputs = self.encode_source(src, src_mask, meanpool=True)
         encoder_states = encoder_outputs["encoder_states"]
+        
+        
         # Tree encoding
         enc_x = enc_tree.ndata["x"].cuda()
         x_embeds = self.label_embed_layer(enc_x)
@@ -99,7 +126,10 @@ class TreeAutoEncoder(nn.Module):
         enc_tree.ndata['c'] = torch.zeros(
             (enc_tree.number_of_nodes(), self.hidden_size)).cuda()
         enc_tree.ndata['mask'] = enc_tree.ndata['mask'].float().cuda()
-        dgl.prop_nodes_topo(enc_tree)
+        dgl.prop_nodes_topo(enc_tree,
+                            self.enc_cell.message_func,
+                            self.enc_cell.reduce_func,
+                            apply_node_func=self.enc_cell.apply_node_func)
         # Obtain root representation
         root_mask = enc_tree.ndata["mask"].float().cuda()
         # root_idx = torch.arange(root_mask.shape[0])[root_mask > 0].cuda()
@@ -130,7 +160,10 @@ class TreeAutoEncoder(nn.Module):
         dec_tree.ndata['c'] = torch.zeros(
             (enc_tree.number_of_nodes(), self.hidden_size)).cuda()
         dec_tree.ndata['mask'] = dec_tree.ndata['mask'].float().cuda()
-        dgl.prop_nodes_topo(dec_tree)
+        dgl.prop_nodes_topo(dec_tree,
+                            self.dec_cell.message_func,
+                            self.dec_cell.reduce_func,
+                            apply_node_func=self.dec_cell.apply_node_func)
         # Compute logits
         all_h = self.dropout(dec_tree.ndata.pop("h"))
         logits = self.logit_nn(all_h)
@@ -144,15 +177,16 @@ class TreeAutoEncoder(nn.Module):
         monitor["label_accuracy"] = acc
         return monitor
 
-    def _init_graph(self, enc_tree, dec_tree):
-        enc_tree.register_message_func(self.enc_cell.message_func)
-        enc_tree.register_reduce_func(self.enc_cell.reduce_func)
-        enc_tree.register_apply_node_func(self.enc_cell.apply_node_func)
-        enc_tree.set_n_initializer(dgl.init.zero_initializer)
-        dec_tree.register_message_func(self.dec_cell.message_func)
-        dec_tree.register_reduce_func(self.dec_cell.reduce_func)
-        dec_tree.register_apply_node_func(self.dec_cell.apply_node_func)
-        dec_tree.set_n_initializer(dgl.init.zero_initializer)
+    # deprecated feature
+    # def _init_graph(self, enc_tree, dec_tree):
+    #     enc_tree.register_message_func(self.enc_cell.message_func)
+    #     enc_tree.register_reduce_func(self.enc_cell.reduce_func)
+    #     enc_tree.register_apply_node_func(self.enc_cell.apply_node_func)
+    #     enc_tree.set_n_initializer(dgl.init.zero_initializer)
+    #     dec_tree.register_message_func(self.dec_cell.message_func)
+    #     dec_tree.register_reduce_func(self.dec_cell.reduce_func)
+    #     dec_tree.register_apply_node_func(self.dec_cell.apply_node_func)
+    #     dec_tree.set_n_initializer(dgl.init.zero_initializer)
 
     def load_pretrain(self, pretrain_path):
         first_param = next(self.parameters())
