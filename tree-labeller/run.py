@@ -52,11 +52,11 @@ batch_size = 128 * gpu_num
 parser = argparse.ArgumentParser(
     description="Generate syntactic codes for target corpus")
 
-parser.add_argument("--data_folder", default=data_folder, type=str,
+parser.add_argument("--data_folder", type=str, default=data_folder,
                     help="Dir containing source and target data. Default: $(pwd)/data")
-parser.add_argument("--model_folder", action="store_true", default=model_folder,
+parser.add_argument("--model_folder", type=str, default=model_folder,
                     help="Dir to save models. Default: $(pwd)/models")
-parser.add_argument("model_name", type=str, 
+parser.add_argument("--model_name", type=str, 
                     help="Name for model files")
 
 parser.add_argument("--source_corpus", type=str,
@@ -135,7 +135,8 @@ if torch.cuda.is_available():
 
     
 # train the model
-if OPTS.train:
+if OPTS.train or OPTS.all:
+    print("training model...")
     # Training code
     scheduler = SimpleScheduler(30)
     weight_decay = 1e-5 if OPTS.weightdecay else 0
@@ -144,14 +145,14 @@ if OPTS.train:
                         scheduler=scheduler)
     OPTS.trainer = trainer
     trainer.configure(
-        save_path=OPTS.model_path,
+        save_path=model_path,
         n_valid_per_epoch=n_valid_per_epoch,
         criteria="loss",
     )
     # TODO: sort out whatever this pretrain thing is
     if OPTS.load_pretrain:
         import re
-        pretrain_path = re.sub(r"_codebits-\d", "", OPTS.model_path)
+        pretrain_path = re.sub(r"_codebits-\d", "", model_path)
         pretrain_path = pretrain_path.replace("_load_pretrain", "")
         print("loading pretrained model in ", pretrain_path)
         autoencoder.load_pretrain(pretrain_path)
@@ -160,12 +161,13 @@ if OPTS.train:
     if OPTS.resume:
         trainer.load()
     trainer.run()
+    print("training finished.")
 
 # add codes to data with model
 if OPTS.export_code or OPTS.all:
     print("exporting codes...")
-    assert os.path.exists(OPTS.model_path)
-    autoencoder.load(OPTS.model_path)
+    assert model_path.exists()
+    autoencoder.load(model_path)
     out_path = model_path.with_suffix('.codes')
 
     autoencoder.train(False)
