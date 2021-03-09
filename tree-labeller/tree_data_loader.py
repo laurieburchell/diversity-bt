@@ -345,9 +345,7 @@ class BilingualTreeDataLoader(Dataset):
         return self._label_vocab
 
     def yield_all_batches(self, batch_size=128):
-        #OPTS.tinydata = False
         src_vocab = self._src_vocab
-       #data = []
         src_lines = open(self._src_path).readlines()
         cfg_lines = open(self._cfg_path).readlines()
         assert len(src_lines) == len(cfg_lines)

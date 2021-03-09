@@ -100,15 +100,17 @@ class GlobalOptions(MapDict):
         if hasattr(args, "result_name") and getattr(args, "result_name") is not None:
             self["result_name"] = args.result_name + self["result_tag"]
         if hasattr(args, "model_path") and getattr(args, "model_path") is not None:
-            assert "." in args.model_path
-            pieces = args.model_path.rsplit(".", 1)
-            self["model_path"] = "{}_{}.{}".format(
-                pieces[0], self.model_tag, pieces[1])
+            # assert "." in args.model_path
+            # pieces = args.model_path.rsplit(".", 1)
+            # self["model_path"] = "{}_{}.{}".format(
+            #     pieces[0], self.model_tag, pieces[1])
+            self["model_path"] = args.model_path
         if hasattr(args, "result_path") and getattr(args, "result_path") is not None:
-            assert "." in args.result_path
-            pieces = args.result_path.rsplit(".", 1)
-            self["result_path"] = "{}_{}.{}".format(
-                pieces[0], self.result_tag, pieces[1])
+            # assert "." in args.result_path
+            # pieces = args.result_path.rsplit(".", 1)
+            # self["result_path"] = "{}_{}.{}".format(
+            #     pieces[0], self.result_tag, pieces[1])
+            self["result_path"] = args.result_path
         # no horovod please
         # try:
         #     import horovod.torch as hvd
@@ -117,7 +119,8 @@ class GlobalOptions(MapDict):
         #         print("[OPTS] Model tag:", self.model_tag)
         # except:
         #     print("[OPTS] Model tag:", self.model_tag)
-        
+
+
 def plot_tree(g):
     # this plot requires pygraphviz package
     pos = nx.nx_agraph.graphviz_layout(g, prog='dot')
@@ -128,23 +131,29 @@ def plot_tree(g):
 
 if "OPTS" not in globals():
     OPTS = GlobalOptions()
-    
+
+
 def bleu_stats(hypothesis, reference):
     yield len(hypothesis)
     yield len(reference)
     for n in range(1, 5):
-        s_ngrams = Counter([tuple(hypothesis[i:i + n]) for i in range(len(hypothesis) + 1 - n)])
-        r_ngrams = Counter([tuple(reference[i:i + n]) for i in range(len(reference) + 1 - n)])
+        s_ngrams = Counter([tuple(hypothesis[i:i + n])
+                            for i in range(len(hypothesis) + 1 - n)])
+        r_ngrams = Counter([tuple(reference[i:i + n])
+                            for i in range(len(reference) + 1 - n)])
         yield sum((s_ngrams & r_ngrams).values())
         yield max(len(hypothesis) + 1 - n, 0)
+
 
 def smoothed_bleu(hypothesis, reference):
     stats = list(bleu_stats(hypothesis, reference))
     c, r = stats[:2]
     if c == 0:
         return 0
-    log_bleu_prec = sum([np.log((1 + float(x)) / (1 + y)) for x, y in zip(stats[2::2], stats[3::2])]) / 4.
+    log_bleu_prec = sum([np.log((1 + float(x)) / (1 + y))
+                         for x, y in zip(stats[2::2], stats[3::2])]) / 4.
     return np.exp(min(0, 1 - float(r) / c) + log_bleu_prec) * 100
+
 
 def execution_env():
     if not torch.cuda.is_available():
@@ -200,7 +209,8 @@ def distributed_init(local_rank, local_size=1, master="127.0.0.1", port="12355")
     os.environ['MASTER_PORT'] = str(port)
     rank = node_rank * local_size + local_rank
     world_sz = node_size * local_size
-    dist.init_process_group(backend, rank=rank, world_size=world_sz, init_method=init_method)
+    dist.init_process_group(
+        backend, rank=rank, world_size=world_sz, init_method=init_method)
     OPTS.dist_local_rank = local_rank
     OPTS.dist_local_size = local_size
 
@@ -249,4 +259,3 @@ def node_size():
 
 def distributed_cleanup():
     dist.destroy_process_group()
-

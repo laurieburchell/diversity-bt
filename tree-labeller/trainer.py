@@ -378,7 +378,10 @@ class TrainerKit(object):
                 self._saving_func(self, state_dict, path)
             else:
                 torch.save(state_dict, path)
-                open(self._save_path + ".log", "w").writelines([l + "\n" for l in self._log_lines])
+                # new path handling
+                #open(self._save_path + ".log", "w").writelines([l + "\n" for l in self._log_lines])
+                open(self._save_path.with_suffix('.log'), 'w').writelines(
+                    [l + "\n" for l in self._log_lines])
     
     def load(self, path=None):
         if path is None:
