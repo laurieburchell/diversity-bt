@@ -71,15 +71,18 @@ parser.add_argument("--target_tree_vocab", type=str,
                     help="filepath of the target-side tree vocab")
 
 parser.add_argument("--opt_limit_tree_depth", type=int, default=0,
-                    help="limit the depth of the parse tree to consider")
+                    help="limit the depth of the parse tree to consider. \
+                        Default: 0")
 parser.add_argument("--opt_limit_datapoints", type=int, default=-1,
-                    help="limit the number of input datapoints (per GPU)")
+                    help="limit the number of input datapoints (per GPU). \
+                        Default: -1")
 parser.add_argument("--opt_hidden_size", type=int, default=256,
-                    help="Dimension of hidden layer in tree autoencoder")
+                    help="Dimension of hidden layer in tree autoencoder \
+                        Default: 256")
 parser.add_argument("--opt_without_source", action="store_true",
                     help="Do not have input source sentence")
 parser.add_argument("--opt_codebits", type=int, default=8,
-                help="Number of bits for each discrete code")
+                help="Number of bits for each discrete code. Default: 8")
 
 parser.add_argument("--train", action="store_true",
                     help="Train the model")
