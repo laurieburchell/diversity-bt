@@ -83,6 +83,8 @@ parser.add_argument("--opt_without_source", action="store_true",
                     help="Do not have input source sentence")
 parser.add_argument("--opt_codebits", type=int, default=8,
                 help="Number of bits for each discrete code. Default: 8")
+parser.add_argument("--load_pretrain", type=str, default="",
+                    help="Path to pretrained model")
 
 parser.add_argument("--train", action="store_true",
                     help="Train the model")
@@ -108,6 +110,9 @@ assert OPTS.target_corpus.exists()
 assert OPTS.source_vocab.exists()
 assert OPTS.target_trees.exists()
 assert OPTS.target_tree_vocab.exists()
+if OPTS.load_pretrain:
+    pretrain_path = model_folder.joinpath(OPTS.load_pretrain)
+    assert pretrain_path.exists()
 
 # create folder for the models to live in
 model_folder.mkdir(parents=True, exist_ok=True)
@@ -140,6 +145,7 @@ if torch.cuda.is_available():
 # train the model
 if OPTS.train or OPTS.all:
     print("training model...")
+    print(f"model is at {model_path}")
     # Training code
     scheduler = SimpleScheduler(30)
     weight_decay = 1e-5 if OPTS.weightdecay else 0
@@ -154,17 +160,20 @@ if OPTS.train or OPTS.all:
     )
     # TODO: sort out whatever this pretrain thing is
     if OPTS.load_pretrain:
-        import re
-        pretrain_path = re.sub(r"_codebits-\d", "", model_path)
-        pretrain_path = pretrain_path.replace("_load_pretrain", "")
-        print("loading pretrained model in ", pretrain_path)
+        # import re
+        # pretrain_path = re.sub(r"_codebits-\d", "", OPTS.model_path)
+        # pretrain_path = pretrain_path.replace("_load_pretrain", "")
+        # if is_root_node():
+        #     print("loading pretrained model in ", pretrain_path)
+        # autoencoder.load_pretrain(pretrain_path)
+        print(f"loading pretrained model in {pretrain_path}")
         autoencoder.load_pretrain(pretrain_path)
     else:
         scheduler = SimpleScheduler(10)
     if OPTS.resume:
         trainer.load()
     trainer.run()
-    print("training finished.")
+    print(f"training finished. Model saved at {model_path}")
 
 # add codes to data with model
 if OPTS.export_code or OPTS.all:
@@ -196,7 +205,7 @@ if OPTS.export_code or OPTS.all:
                 sys.stdout.flush()
                 c1 = c
         sys.stdout.write("\n")
-    print("codes exported.")
+    print(f"codes exported to {out_path}.")
 
 
 if OPTS.make_target or OPTS.all:
