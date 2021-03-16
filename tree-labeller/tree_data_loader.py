@@ -171,7 +171,7 @@ class TreeDataGenerator(object):
             trees.append(paired_tree)
         return trees
 
-    def build_trees(self, cfg_line):
+    def build_trees(self, cfg_line, device=1):
         parse = self._parse_cfg_line(cfg_line)
         if parse is None or not parse.leaves():
             return None
@@ -226,7 +226,7 @@ class TreeDataGenerator(object):
         enc_graph = dgl.from_networkx(enc_g, node_attrs=['x', 'mask'])
         dec_graph = dgl.from_networkx(
             dec_g, node_attrs=['x', 'y', 'pos', 'mask', 'depth'])
-        return enc_graph.to("cuda:0"), dec_graph.to("cuda:0")
+        return enc_graph.to(f"cuda:{device}"), dec_graph.to(f"cuda:{device}")
 
     def trees(self):
         return self._trees
