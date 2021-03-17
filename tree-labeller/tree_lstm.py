@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import dgl
 
-from nmtlab.utils import OPTS
+from utils import OPTS
 
 
 class TreeLSTMCell(nn.Module):

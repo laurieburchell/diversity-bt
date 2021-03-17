@@ -10,7 +10,7 @@ from vocab import Vocab
 import torchtext
 import numpy as np
 import random
-from torchtext.data.iterator import BucketIterator
+from torchtext.legacy.data import BucketIterator
 
 
 class Dataset(object):
@@ -73,7 +73,7 @@ class Dataset(object):
         self._batch_size = batch_size
 
 
-class BilingualDataset(torchtext.data.Dataset):
+class BilingualDataset(torchtext.legacy.data.Dataset):
 
     def __init__(self, src_path, tgt_path, src_field, tgt_field, **kwargs):
         fields = {

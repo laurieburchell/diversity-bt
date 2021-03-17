@@ -10,7 +10,7 @@ from abc import abstractmethod, ABCMeta
 import numpy as np
 import torch
 from torch.autograd import Variable
-from torchtext.data.batch import Batch
+#from torchtext.data.batch import Batch
 from collections import defaultdict
 from utils import OPTS
 import time
@@ -220,10 +220,11 @@ class TrainerKit(object):
             vars = [src_seq, tgt_seq]
         else:
             vars = []
-            if isinstance(batch, Batch):
-                batch_vars = list(batch)[0]
-            else:
-                batch_vars = batch
+           # if isinstance(batch, Batch):
+           #     batch_vars = list(batch)[0]
+           # else:
+           #     batch_vars = batch
+            batch_vars = batch
             for x in batch_vars:
                 if type(x) == np.array:
                     if "int" in str(x.dtype):

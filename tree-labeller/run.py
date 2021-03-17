@@ -57,7 +57,7 @@ parser.add_argument("--data_folder", type=str, default=data_folder,
 parser.add_argument("--model_folder", type=str, default=model_folder,
                     help="Dir to save models. Default: $(pwd)/models")
 parser.add_argument("--model_name", type=str, 
-                    help="Name for model files")
+                    help="Prefix for model files (excluding options added to name)")
 
 parser.add_argument("--source_corpus", type=str,
                     help="filepath of the source-side training corpus")
@@ -74,7 +74,7 @@ parser.add_argument("--opt_limit_tree_depth", type=int, default=0,
                     help="limit the depth of the parse tree to consider. \
                         Default: 0")
 parser.add_argument("--opt_limit_datapoints", type=int, default=-1,
-                    help="limit the number of input datapoints (per GPU). \
+                    help="limit the number of input datapoints. \
                         Default: -1")
 parser.add_argument("--opt_hidden_size", type=int, default=256,
                     help="Dimension of hidden layer in tree autoencoder \
@@ -98,6 +98,10 @@ parser.add_argument("--all", action="store_true",
 OPTS.parse(parser)
 
 # turn ops into Paths and check they exist
+if OPTS.data_folder:
+    data_folder = pathlib.Path(OPTS.data_folder)
+if OPTS.model_folder:
+    model_folder = pathlib.Path(OPTS.model_folder)
 OPTS.source_corpus = data_folder.joinpath(OPTS.source_corpus)
 OPTS.target_corpus = data_folder.joinpath(OPTS.target_corpus)
 OPTS.source_vocab = data_folder.joinpath(OPTS.source_vocab)
@@ -178,6 +182,7 @@ if OPTS.train or OPTS.all:
 # add codes to data with model
 if OPTS.export_code or OPTS.all:
     print("exporting codes...")
+    print(f'using model at {model_path}')
     assert model_path.exists()
     autoencoder.load(model_path)
     out_path = model_path.with_suffix('.codes')
