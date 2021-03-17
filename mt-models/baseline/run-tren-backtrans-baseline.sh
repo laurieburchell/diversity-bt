@@ -5,13 +5,13 @@ set -eo pipefail
 TODAY=`date '+%Y%m%d-%H%M'`
 MARIAN="/home/laurie/apps/marian-dev/build/marian"
 INPUT_FOLDER="/mnt/startiger0/laurie/diversity/turkish/parallel_data/data"
-DATA="$INPUT_FOLDER"
+DATA="$INPUT_FOLDER/filtered_data"
 SRC="tr"
 TRG="en"
-TRAIN="train.sp"
-DEV="dev.sp"
-VOCAB_SRC="$INPUT_FOLDER/vocab.$SRC$TRG.yml"
-VOCAB_TRG="$INPUT_FOLDER/vocab.$SRC$TRG.yml"
+TRAIN="train"
+DEV="dev"
+VOCAB_SRC="$DATA/vocab.$SRC$TRG.spm"
+VOCAB_TRG="$DATA/vocab.$SRC$TRG.spm"
 MODELS_LOC="/mnt/startiger0/laurie/diversity/mt-models/baseline/models"
 MODEL_DIR="$MODELS_LOC/$1"
 MODEL="bt-baseline.npz"
@@ -25,16 +25,17 @@ echo "changed dir to $MODEL_DIR"
 
 $MARIAN \
     --model $MODEL --type transformer \
-    --train-sets $DATA/$TRAIN.$SRC $DATA/$TRAIN.$TRG \
+    --train-sets $DATA/$TRAIN.$SRC.pp $DATA/$TRAIN.$TRG.pp \
     --max-length 80 \
     --max-length-crop \
     --vocabs $VOCAB_SRC $VOCAB_TRG \
+    --dim-vocabs 16000 16000 \
     -w $WORKSPACE \
     --mini-batch-fit \
     --early-stopping 10 \
     --valid-freq 5000 --save-freq 5000 --disp-freq 500 \
     --valid-metrics bleu cross-entropy perplexity \
-    --valid-sets $DATA/$DEV.$SRC $DATA/$DEV.$TRG \
+    --valid-sets $DATA/$DEV.$SRC.pp $DATA/$DEV.$TRG.pp \
     --valid-translation-output $MODEL_DIR/valid.bpe.en.output \
     --quiet-translation \
     --beam-size 5 --normalize 0.6 \
