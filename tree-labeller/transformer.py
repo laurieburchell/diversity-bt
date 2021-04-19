@@ -16,54 +16,6 @@ import math
 RESCALE_COEF = 1 / math.sqrt(2)
 
 
-# class SourceEncoder(nn.Module):
-#     """Encodes source sentence, passes through three encoder layers, 
-#     then mean-pool representation"""
-#     def __init__(self, d_model=512, nhead=8, num_layer=3, 
-#                  dim_feedforward=1024, dropout=0.1, activation="relu"):
-#         super(SourceEncoder, self).__init__()
-#         encoder_layer = nn.TransformerEncoderLayer(d_model, nhead, 
-#                                                 dim_feedforward, dropout,
-#                                                 activation)
-#         self.d_model = d_model
-#         self.nhead = nhead
-#         self.encoder = nn.TransformerEncoder(encoder_layer, 3)
-#         self.embedding = TransformerEmbedding(
-#             self._vocab_size, self.hidden_size, dropout_ratio=dropout_ratio)
-        
-        
-#     def mean_pool(encoder_output, src_mask):
-#         encoder_output = encoder_output * src_mask.unsqueeze(-1)
-#         encoder_output = encoder_output.sum(1) / (src_mask.sum(1).unsqueeze(-1) + 10e-8)
-#         return encoder_output
-        
-    
-#     def forward(self, src):
-#         """
-#         Process source sequences, returning an encoding
-
-#         Parameters
-#         ----------
-#         src : seq
-#             The sequence to the encoder.
-#         src_key_padding_mask : TYPE, optional
-#             The mask for source keys per batch. The default is None.
-
-#         Returns
-#         -------
-#         None.
-
-#         """
-#         # make mask of null input
-#         src_mask = torch.ne(src, 0).float()
-#         x = 
-#         x = self.encoder(src, )
-        
-        
-
-
-
-
 class TransformerEmbedding(nn.Embedding):
     """
     Rescale the embeddings.
@@ -96,9 +48,6 @@ class TransformerEmbedding(nn.Embedding):
             embed += pos_embed
         return self.dropout(embed)
     
-
-
-
 
 class PositionalEmbedding(nn.Module):
     """

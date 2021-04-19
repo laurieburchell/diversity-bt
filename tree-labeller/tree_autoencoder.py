@@ -56,6 +56,7 @@ class TreeAutoEncoder(nn.Module):
         else:
             self.semhash = None
         self.initialize_parameters()
+        
 
     def initialize_parameters(self):
         """Initialize the parameters in the model."""
@@ -109,7 +110,6 @@ class TreeAutoEncoder(nn.Module):
     
 
     def forward(self, src, enc_tree, dec_tree, return_code=False, **kwargs):
-        
         # Source encoding
         # TODO: get mask working
         src_mask = torch.eq(src, 0)
@@ -176,17 +176,6 @@ class TreeAutoEncoder(nn.Module):
         monitor["loss"] = loss
         monitor["label_accuracy"] = acc
         return monitor
-
-    # deprecated feature
-    # def _init_graph(self, enc_tree, dec_tree):
-    #     enc_tree.register_message_func(self.enc_cell.message_func)
-    #     enc_tree.register_reduce_func(self.enc_cell.reduce_func)
-    #     enc_tree.register_apply_node_func(self.enc_cell.apply_node_func)
-    #     enc_tree.set_n_initializer(dgl.init.zero_initializer)
-    #     dec_tree.register_message_func(self.dec_cell.message_func)
-    #     dec_tree.register_reduce_func(self.dec_cell.reduce_func)
-    #     dec_tree.register_apply_node_func(self.dec_cell.apply_node_func)
-    #     dec_tree.set_n_initializer(dgl.init.zero_initializer)
 
     def load_pretrain(self, pretrain_path):
         first_param = next(self.parameters())

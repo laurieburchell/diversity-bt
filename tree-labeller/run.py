@@ -30,13 +30,6 @@ from vocab import Vocab
 # need to check they are good filepaths
 data_folder = pathlib.Path.cwd().joinpath('data')
 model_folder = pathlib.Path.cwd().joinpath('models')
-#src_sents = data_folder.joinpath('wmt14_deen_test.de.sp')
-#tgt_sents = data_folder.joinpath('wmt14_deen_test.en')  # TODO: add in sp
-#src_vocab = data_folder.joinpath('wmt14.de.sp.vocab')
-#trg_tree = data_folder.joinpath('wmt14_deen_test.en.cfg.oneline')
-#tree_lstm_vocab = data_folder.joinpath('wmt14.treelstm.vocab')  # pickled
-#model_path = model_folder.joinpath('tree-codes-wmt14-test.pt')
-
 
 # constants
 n_valid_per_epoch = 4
@@ -85,6 +78,10 @@ parser.add_argument("--opt_codebits", type=int, default=8,
                 help="Number of bits for each discrete code. Default: 8")
 parser.add_argument("--load_pretrain", type=str, default="",
                     help="Path to pretrained model")
+parser.add_argument("--device", type=int, default=0,
+                    help="GPU device number. Default: 0")
+parser.add_argument("--output_name", type=str, default="",
+                    help="name for output files. Default: <model_path>.{codes, tgt}")
 
 parser.add_argument("--train", action="store_true",
                     help="Train the model")
@@ -122,6 +119,7 @@ if OPTS.load_pretrain:
 model_folder.mkdir(parents=True, exist_ok=True)
 model_path = model_folder.joinpath(OPTS.model_name)
 
+
 # Define dataset
 dataset = BilingualTreeDataLoader(
     src_path=OPTS.source_corpus,
@@ -134,7 +132,8 @@ dataset = BilingualTreeDataLoader(
     part_num=part_num,
     max_tokens=60,
     limit_datapoints=OPTS.limit_datapoints,
-    limit_tree_depth=OPTS.limit_tree_depth
+    limit_tree_depth=OPTS.limit_tree_depth,
+    device=OPTS.device
 )
 
 # Load the tree autoencoder onto GPU
@@ -162,14 +161,7 @@ if OPTS.train or OPTS.all:
         n_valid_per_epoch=n_valid_per_epoch,
         criteria="loss",
     )
-    # TODO: sort out whatever this pretrain thing is
     if OPTS.load_pretrain:
-        # import re
-        # pretrain_path = re.sub(r"_codebits-\d", "", OPTS.model_path)
-        # pretrain_path = pretrain_path.replace("_load_pretrain", "")
-        # if is_root_node():
-        #     print("loading pretrained model in ", pretrain_path)
-        # autoencoder.load_pretrain(pretrain_path)
         print(f"loading pretrained model in {pretrain_path}")
         autoencoder.load_pretrain(pretrain_path)
     else:
@@ -185,7 +177,10 @@ if OPTS.export_code or OPTS.all:
     print(f'using model at {model_path}')
     assert model_path.exists()
     autoencoder.load(model_path)
-    out_path = model_path.with_suffix('.codes')
+    if OPTS.output_name:
+        out_path = model_folder.joinpath(OPTS.output_name).with_suffix('.codes')
+    else:
+        out_path = model_path.with_suffix('.codes')
 
     autoencoder.train(False)
     if torch.cuda.is_available():
@@ -214,8 +209,12 @@ if OPTS.export_code or OPTS.all:
 
 
 if OPTS.make_target or OPTS.all:
-    export_path = model_path.with_suffix('.codes')
-    out_path = model_path.with_suffix('.tgt')
+    if OPTS.output_name:
+        export_path = model_folder.joinpath(OPTS.output_name).with_suffix('.codes')
+        out_path = export_path.with_suffix('.tgt')
+    else:
+        export_path = model_path.with_suffix('.codes')
+        out_path = model_path.with_suffix('.tgt')
     print("out path", out_path)
     export_map = {}
     for line in open(export_path):
@@ -234,7 +233,4 @@ if OPTS.make_target or OPTS.all:
                 outf.write("{} <eoc> {}\n".format(export_map[key], tgt.strip()))
             else:
                 outf.write("\n")
-
-
-
 

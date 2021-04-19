@@ -87,7 +87,7 @@ class TreeDataGenerator(object):
 
     def __init__(self, cfg_path, treelstm_vocab_path, part_index=0,
                  part_num=1, cache_path=None, limit_datapoints=0,
-                 limit_tree_depth=0):
+                 limit_tree_depth=0, device=0):
         """
 
         Parameters
@@ -125,6 +125,7 @@ class TreeDataGenerator(object):
         self._limit_tree_depth = limit_tree_depth
         self._vocab = Vocab(treelstm_vocab_path, picklable=True)
         self._trees = []
+        self._device = device
 
     def load(self):
         """
@@ -171,13 +172,14 @@ class TreeDataGenerator(object):
             trees.append(paired_tree)
         return trees
 
-    def build_trees(self, cfg_line, device=1):
+    def build_trees(self, cfg_line):
         parse = self._parse_cfg_line(cfg_line)
         if parse is None or not parse.leaves():
             return None
         enc_g = nx.DiGraph()  # directed networkx graphs
         dec_g = nx.DiGraph()
         failed = False
+        device = self._device
 
         def _rec_build(id_enc, id_dec, node, depth=0):
             if len(node) > 10:
@@ -241,7 +243,8 @@ class BilingualTreeDataLoader(Dataset):
                  load_data=True,
                  truncate=None,
                  limit_datapoints=0,
-                 limit_tree_depth=0):
+                 limit_tree_depth=0,
+		 device=0):
         self._max_tokens = max_tokens
         self._src_path = src_path
         self._src_vocab_path = src_vocab_path
@@ -256,6 +259,7 @@ class BilingualTreeDataLoader(Dataset):
         self._limit_datapoints = limit_datapoints
         self._limit_tree_depth = limit_tree_depth
         self._rand = np.random.RandomState(3)
+        self._device = device
         if load_data:
             train_data, valid_data = self._load_data()
         self._n_train_samples = len(train_data)
@@ -274,7 +278,8 @@ class BilingualTreeDataLoader(Dataset):
                                     cache_path=self._cache_path,
                                     part_index=self._part_index, part_num=self._part_num,
                                     limit_datapoints=self._limit_datapoints,
-                                    limit_tree_depth=self._limit_tree_depth)
+                                    limit_tree_depth=self._limit_tree_depth,
+				    device=self._device)
         treegen.load()
         trees = treegen.trees()
         if self._limit_datapoints > 0:
