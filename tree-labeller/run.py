@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Mon Mar  1 10:42:50 2021
 
@@ -106,6 +104,7 @@ OPTS.target_trees = data_folder.joinpath(OPTS.target_trees)
 OPTS.target_tree_vocab = data_folder.joinpath(OPTS.target_tree_vocab)
 
 assert data_folder.exists()
+print(OPTS.source_corpus)
 assert OPTS.source_corpus.exists()
 assert OPTS.target_corpus.exists()
 assert OPTS.source_vocab.exists()

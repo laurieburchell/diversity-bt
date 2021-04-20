@@ -1,6 +1,12 @@
 tree-labeller/data/
 korean-baseline/
 
+# slurm files
+*.out
+*.err
+*machine.file*
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
