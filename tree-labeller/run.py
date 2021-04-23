@@ -22,9 +22,6 @@ from tree_data_loader import BilingualTreeDataLoader
 from utils import OPTS
 from vocab import Vocab
 
-
-
-# paths to data - hardcoded test files for now. 
 # need to check they are good filepaths
 data_folder = pathlib.Path.cwd().joinpath('data')
 model_folder = pathlib.Path.cwd().joinpath('models')
@@ -118,6 +115,24 @@ if OPTS.load_pretrain:
 model_folder.mkdir(parents=True, exist_ok=True)
 model_path = model_folder.joinpath(OPTS.model_name)
 
+# make output folder
+output_folder = data_folder.joinpath('output')
+output_folder.mkdir(parents=True, exist_ok=True)
+print(f"writing output files to {output_folder}")
+
+# set export path for codes
+# set output path for finished dataset
+if OPTS.output_name:
+    out_base = output_folder.joinpath(OPTS.output_name)
+    out_path = out_base.with_suffix(out_base.suffix +'.tgt')
+    export_path = out_base.with_suffix(out_base.suffix +'.codes')
+else:
+    out_base = output_folder.joinpath(OPTS.model_name)
+    out_path = out_base.with_suffix(out_base.suffix +'.tgt')
+    export_path = out_base.with_suffix(out_base.suffix +'.codes')
+    
+print(f"codes will be written to {export_path}")
+print(f"final output will be written to {out_path}")
 
 # Define dataset
 dataset = BilingualTreeDataLoader(
@@ -176,18 +191,18 @@ if OPTS.export_code or OPTS.all:
     print(f'using model at {model_path}')
     assert model_path.exists()
     autoencoder.load(model_path)
-    if OPTS.output_name:
-        out_path = model_folder.joinpath(OPTS.output_name).with_suffix('.codes')
-    else:
-        out_path = model_path.with_suffix('.codes')
+#    if OPTS.output_name:
+#        out_path = model_folder.joinpath(OPTS.output_name).with_suffix(OPTS.output_name.suffix + '.codes')
+#    else:
+#        out_path = model_path.with_suffix(OPTS.model_path.suffix + '.codes')
 
     autoencoder.train(False)
     if torch.cuda.is_available():
         autoencoder.cuda()
     c = 0
     c1 = 0
-    with open(out_path, "w") as outf:
-        print("code path", out_path)
+    with open(export_path, "w") as outf:
+        print("code path", export_path)
         for batch in dataset.yield_all_batches(batch_size=512):
             src_lines, cfg_lines, src_batch, enc_tree, dec_tree = batch
             out = autoencoder(src_batch.cuda(), enc_tree, dec_tree, return_code=True)
@@ -204,17 +219,17 @@ if OPTS.export_code or OPTS.all:
                 sys.stdout.flush()
                 c1 = c
         sys.stdout.write("\n")
-    print(f"codes exported to {out_path}.")
+    print(f"codes exported to {export_path}.")
 
 
 if OPTS.make_target or OPTS.all:
-    if OPTS.output_name:
-        export_path = model_folder.joinpath(OPTS.output_name).with_suffix('.codes')
-        out_path = export_path.with_suffix('.tgt')
-    else:
-        export_path = model_path.with_suffix('.codes')
-        out_path = model_path.with_suffix('.tgt')
-    print("out path", out_path)
+#    if OPTS.output_name:
+#        export_path = model_folder.joinpath(OPTS.output_name).with_suffix(OPTS.output_name.suffix + '.codes')
+#        out_path = export_path.with_suffix(export_path.suffix + '.tgt')
+#    else:
+#        export_path = model_path.with_suffix(model_path.suffix + '.codes')
+#        out_path = model_path.with_suffix(model_path.suffix + '.tgt')
+#    print("out path", out_path)
     export_map = {}
     for line in open(export_path):
         if len(line.strip().split("\t")) < 3:
@@ -231,5 +246,5 @@ if OPTS.make_target or OPTS.all:
             if key in export_map:
                 outf.write("{} <eoc> {}\n".format(export_map[key], tgt.strip()))
             else:
-                outf.write("\n")
+                outf.write("<ERR>" + line)
 
